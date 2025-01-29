@@ -1,6 +1,7 @@
 import pylibdicom
 import gdcm
 from pydicom import dcmread
+import difflib
 
 def libdicom_print_sequence(seq, indent=0, file=None):
     if file is not None:
@@ -63,3 +64,32 @@ with open("gdcm_output.txt", "w") as output_file:
 ds = dcmread("sm_image.dcm")
 with open("pydicom_output.txt", "w") as output_file:
     output_file.write(str(ds))
+
+# Compare the outputs
+with open("libdicom_output.txt") as file_1:
+    file_1_text = file_1.readlines()
+
+with open("gdcm_output.txt") as file_2:
+    file_2_text = file_2.readlines()
+
+with open("pydicom_output.txt") as file_3:
+    file_3_text = file_3.readlines()
+
+def compare_files(file1, file2, file3):
+    diff12 = list(difflib.unified_diff(file1, file2, lineterm=''))
+    diff13 = list(difflib.unified_diff(file1, file3, lineterm=''))
+    diff23 = list(difflib.unified_diff(file2, file3, lineterm=''))
+    
+    return diff12, diff13, diff23
+
+diff12, diff13, diff23 = compare_files(file_1_text, file_2_lines, file_3_lines)
+
+# Print differences
+print("Differences between File 1 and File 2:")
+print("\n".join(diff12))
+
+print("\nDifferences between File 1 and File 3:")
+print("\n".join(diff13))
+
+print("\nDifferences between File 2 and File 3:")
+print("\n".join(diff23))
