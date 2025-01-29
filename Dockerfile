@@ -1,5 +1,6 @@
 # Use the official Ubuntu image as the base image
 FROM ubuntu:latest
+SHELL ["/bin/bash", "-c"]
 
 # install libdicom
 RUN apt-get update && apt-get install -y \
@@ -13,21 +14,12 @@ RUN git clone https://github.com/ImagingDataCommons/libdicom.git
 RUN cd libdicom && meson setup builddir --buildtype release \
 	&& meson compile -C builddir && meson install -C builddir
 
-# get grassroots dicom
-RUN git clone --branch release git://git.code.sf.net/p/gdcm/gdcm\
-	&& mkdir gdcmbin && cd gdcmbin && cmake ../gdcm \
-	&& make -j4 && make install
-
 RUN python3 -m venv dicom
 
-RUN source dicom/bin/activate
+RUN source /dicom/bin/activate && pip install pydicom python-gdcm
 
-RUN pip install pydicom
-
-RUN git clone git@github.com:jcupitt/pylibdicom.git
+RUN git clone https://github.com/jcupitt/pylibdicom.git
 
 COPY fuzz_dicom.py /pylibdicom/fuzz_dicom.py
 
 COPY 0002.DCM /pylibdicom/0002.DCM
-
-RUN cd /pylibdicom && python3 fuzz_dicom.py
