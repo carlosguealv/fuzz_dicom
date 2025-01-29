@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 RUN git clone https://github.com/ImagingDataCommons/libdicom.git
 
 RUN cd libdicom && meson setup builddir --buildtype release \
-	&& meson compile -C builddir && meson install -C builddir
+	&& meson compile -C builddir && meson install -C builddir && ldconfig
 
 RUN python3 -m venv dicom
 

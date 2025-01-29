@@ -30,7 +30,7 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
 
 # Open the file for writing
 with open("libdicom_output.txt", "w") as output_file:
-    file = pylibdicom.Filehandle.create_from_file("0002.DCM")
+    file = pylibdicom.Filehandle.create_from_file("sm_image.dcm")
     file_meta = file.get_file_meta()
     output_file.write("===File Meta Information===\n")
 
@@ -40,29 +40,26 @@ with open("libdicom_output.txt", "w") as output_file:
 
 # Now use gdcm
 reader = gdcm.Reader()
-reader.SetFileName("0002.DCM")
+reader.SetFileName("sm_image.dcm")
 if (not reader.Read()):
-    print "Unable to read %s" % (filename)
+    print("Unable to read %s" % (filename))
     quit()
 
 file = reader.GetFile()
 fileMetaInformation = file.GetHeader()
 
 with open("gdcm_output.txt", "w") as output_file:
-    output_file.write(fileMetaInformation)
+    output_file.write(str(fileMetaInformation))
 
     dataset = file.GetDataSet()
-    ds_iterator = dataset.GetDES()
+    ds_iterator = dataset.GetDES().begin()
 
     output_file.write("=== DICOM Metadata ===")
-    while not ds_iterator.IsAtEnd():
-        de = ds_iterator.GetCurrent()
-        tag = de.GetTag()
-        vr = gdcm.VR.PrintVR(de.GetVR())
-        output_file.write(f"Tag: {tag} | VR: {vr}")
-        ds_iterator.Next()
+    printer = gdcm.Printer()
+    printer.SetFile(file)
+    output_file.write(str(printer))
 
 # now use pydicom
-ds = dcmread("0002.DCM")
+ds = dcmread("sm_image.dcm")
 with open("pydicom_output.txt", "w") as output_file:
     output_file.write(str(ds))
