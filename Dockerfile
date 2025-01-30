@@ -16,10 +16,8 @@ RUN cd libdicom && meson setup builddir --buildtype release \
 
 RUN python3 -m venv dicom
 
-RUN source /dicom/bin/activate && pip install pydicom python-gdcm
+RUN source /dicom/bin/activate && pip install pydicom python-gdcm cffi
 
 RUN git clone https://github.com/jcupitt/pylibdicom.git
 
 COPY fuzz_dicom.py /pylibdicom/fuzz_dicom.py
-
-COPY 0002.DCM /pylibdicom/0002.DCM

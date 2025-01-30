@@ -2,6 +2,7 @@ import pylibdicom
 import gdcm
 from pydicom import dcmread
 import difflib
+import sys
 
 def libdicom_print_sequence(seq, indent=0, file=None):
     if file is not None:
@@ -29,11 +30,16 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
                 seq = element.get_value()
                 libdicom_print_sequence(seq, indent + 2)
 
+if len(sys.argv) != 2:
+    print("Usage: python fuzz_dicom.py <dicom_file>")
+    quit()
+
 # Open the file for writing
 with open("libdicom_output.txt", "w") as output_file:
-    file = pylibdicom.Filehandle.create_from_file("sm_image.dcm")
+    file = pylibdicom.Filehandle.create_from_file(sys.argv[1])
     file_meta = file.get_file_meta()
     output_file.write("===File Meta Information===\n")
+    libdicom_print_dataset(file_meta, file=output_file)
 
     metadata = file.get_metadata()
     output_file.write("===Dataset===\n")
@@ -41,9 +47,9 @@ with open("libdicom_output.txt", "w") as output_file:
 
 # Now use gdcm
 reader = gdcm.Reader()
-reader.SetFileName("sm_image.dcm")
+reader.SetFileName(sys.argv[1])
 if (not reader.Read()):
-    print("Unable to read %s" % (filename))
+    print("Unable to read %s" % sys.argv[1])
     quit()
 
 file = reader.GetFile()
@@ -51,18 +57,18 @@ fileMetaInformation = file.GetHeader()
 
 with open("gdcm_output.txt", "w") as output_file:
     output_file.write(str(fileMetaInformation))
+    output_file.write("===File Meta Information===\n")
 
     dataset = file.GetDataSet()
-    ds_iterator = dataset.GetDES().begin()
-
-    output_file.write("=== DICOM Metadata ===")
-    printer = gdcm.Printer()
-    printer.SetFile(file)
-    output_file.write(str(printer))
+    output_file.write("===Dataset===\n")
+    output_file.write(str(dataset))
 
 # now use pydicom
-ds = dcmread("sm_image.dcm")
+ds = dcmread(sys.argv[1])
 with open("pydicom_output.txt", "w") as output_file:
+    output_file.write("===File Meta Information===\n")
+    output_file.write(str(ds.file_meta))
+    output_file.write("===Dataset===\n")
     output_file.write(str(ds))
 
 # Compare the outputs
