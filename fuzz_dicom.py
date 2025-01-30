@@ -66,9 +66,6 @@ with open("gdcm_output.txt", "w") as output_file:
 # now use pydicom
 ds = dcmread(sys.argv[1])
 with open("pydicom_output.txt", "w") as output_file:
-    output_file.write("===File Meta Information===\n")
-    output_file.write(str(ds.file_meta))
-    output_file.write("===Dataset===\n")
     output_file.write(str(ds))
 
 # Compare the outputs
