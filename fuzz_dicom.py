@@ -3,6 +3,30 @@ import gdcm
 from pydicom import dcmread
 import difflib
 import sys
+import re
+
+class FileParser:
+    '''
+    A class that helps parse the metadata for further fuzzing
+    '''
+    def __init__(self, file_path: str):
+        self.values = {}
+        self.file_path = file_path
+
+    def parse(self):
+        try:
+            with open(self.file_path, 'r') as file:
+                for line in file:
+                    match = re.search(r'\((\d+),\s*(\d+)\)\s*(\d+)', line)
+                    if match:
+                        key = (int(match.group(1)), int(match.group(2)))
+                        value = int(match.group(3))
+                        self.values[key] = value
+        except FileNotFoundError:
+            print(f"The file {self.file_path} was not found.")
+    def get_values(self):
+        return self.values
+
 
 def libdicom_print_sequence(seq, indent=0, file=None):
     if file is not None:
@@ -56,8 +80,8 @@ file = reader.GetFile()
 fileMetaInformation = file.GetHeader()
 
 with open("gdcm_output.txt", "w") as output_file:
-    output_file.write(str(fileMetaInformation))
     output_file.write("===File Meta Information===\n")
+    output_file.write(str(fileMetaInformation))
 
     dataset = file.GetDataSet()
     output_file.write("===Dataset===\n")
@@ -67,6 +91,32 @@ with open("gdcm_output.txt", "w") as output_file:
 ds = dcmread(sys.argv[1])
 with open("pydicom_output.txt", "w") as output_file:
     output_file.write(str(ds))
+
+# Parse the files
+file_parser = FileParser("libdicom_output.txt")
+file_parser.parse()
+libdicom_values = file_parser.get_values()
+
+file_parser = FileParser("gdcm_output.txt")
+file_parser.parse()
+gdcm_values = file_parser.get_values()
+
+file_parser = FileParser("pydicom_output.txt")
+file_parser.parse()
+pydicom_values = file_parser.get_values()
+
+# Rewrite the files with the values
+with open("libdicom_output.txt", "w") as file:
+    for key, value in libdicom_values.items():
+        file.write(f"{key} {value}\n")
+
+with open("gdcm_output.txt", "w") as file:
+    for key, value in gdcm_values.items():
+        file.write(f"{key} {value}\n")
+
+with open("pydicom_output.txt", "w") as file:
+    for key, value in pydicom_values.items():
+        file.write(f"{key} {value}\n")
 
 # Compare the outputs
 with open("libdicom_output.txt") as file_1:
@@ -85,7 +135,7 @@ def compare_files(file1, file2, file3):
     
     return diff12, diff13, diff23
 
-diff12, diff13, diff23 = compare_files(file_1_text, file_2_lines, file_3_lines)
+diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
 
 # Print differences
 print("Differences between File 1 and File 2:")
