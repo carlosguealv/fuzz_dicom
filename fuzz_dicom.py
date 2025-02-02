@@ -5,28 +5,63 @@ import difflib
 import sys
 import re
 
-class FileParser:
-    '''
-    A class that helps parse the metadata for further fuzzing
-    '''
-    def __init__(self, file_path: str):
-        self.values = {}
-        self.file_path = file_path
+def parse_libdicom_output(filepath):
+    """Parses libdicom output and extracts standard metadata."""
+    metadata = {}
+    with open(filepath, "r") as f:
+        lines = f.readlines()
 
-    def parse(self):
-        try:
-            with open(self.file_path, 'r') as file:
-                for line in file:
-                    match = re.search(r'\((\d+),\s*(\d+)\)\s*(\d+)', line)
-                    if match:
-                        key = (int(match.group(1)), int(match.group(2)))
-                        value = int(match.group(3))
-                        self.values[key] = value
-        except FileNotFoundError:
-            print(f"The file {self.file_path} was not found.")
-    def get_values(self):
-        return self.values
+    for line in lines:
+        match = re.match(r"\((\w{4},\w{4})\)\s+\S+\s+\d+\s+(.+)", line)
+        if match:
+            tag, value = match.groups()
+            metadata[tag] = value.strip()
 
+    return metadata
+
+def parse_gdcm_output(filepath):
+    """Parses GDCM output and extracts standard metadata."""
+    metadata = {}
+    with open(filepath, "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        match = re.match(r"\((\w{4},\w{4})\)\s+(\S+)", line)
+        if match:
+            tag, value = match.groups()
+            metadata[tag] = value.strip()
+
+    return metadata
+
+def parse_pydicom_output(filepath):
+    """Parses pydicom output and extracts standard metadata."""
+    metadata = {}
+    with open(filepath, "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        match = re.match(r"(\(\w{4},\w{4}\))\:\s+.*?=\s*(.*)", line)
+        if match:
+            tag, value = match.groups()
+            metadata[tag] = value.strip()
+
+    return metadata
+
+def compare_metadata(libdicom_data, gdcm_data, pydicom_data):
+    """Compares metadata extracted from different libraries and highlights differences."""
+    all_keys = set(libdicom_data.keys()) and set(gdcm_data.keys()) and set(pydicom_data.keys())
+    
+    differences = {}
+    
+    for key in sorted(all_keys):
+        libdicom_value = libdicom_data.get(key, "")
+        gdcm_value = gdcm_data.get(key, "")
+        pydicom_value = pydicom_data.get(key, "")
+        
+        if libdicom_value != gdcm_value or libdicom_value != pydicom_value:
+            differences[key] = (libdicom_value, gdcm_value, pydicom_value)
+
+    return differences
 
 def libdicom_print_sequence(seq, indent=0, file=None):
     if file is not None:
@@ -90,59 +125,15 @@ with open("gdcm_output.txt", "w") as output_file:
 # now use pydicom
 ds = dcmread(sys.argv[1])
 with open("pydicom_output.txt", "w") as output_file:
-    output_file.write(str(ds))
-
-# Parse the files
-file_parser = FileParser("libdicom_output.txt")
-file_parser.parse()
-libdicom_values = file_parser.get_values()
-
-file_parser = FileParser("gdcm_output.txt")
-file_parser.parse()
-gdcm_values = file_parser.get_values()
-
-file_parser = FileParser("pydicom_output.txt")
-file_parser.parse()
-pydicom_values = file_parser.get_values()
-
-# Rewrite the files with the values
-with open("libdicom_output.txt", "w") as file:
-    for key, value in libdicom_values.items():
-        file.write(f"{key} {value}\n")
-
-with open("gdcm_output.txt", "w") as file:
-    for key, value in gdcm_values.items():
-        file.write(f"{key} {value}\n")
-
-with open("pydicom_output.txt", "w") as file:
-    for key, value in pydicom_values.items():
-        file.write(f"{key} {value}\n")
+    for elem in ds:
+        output_file.write(f"{elem.tag}: {elem.name} = {elem.value}\n")
 
 # Compare the outputs
-with open("libdicom_output.txt") as file_1:
-    file_1_text = file_1.readlines()
+libdicom_data = parse_libdicom_output("libdicom_output.txt")
+gdcm_data = parse_gdcm_output("gdcm_output.txt")
+pydicom_data = parse_pydicom_output("pydicom_output.txt")
+print(pydicom_data)
 
-with open("gdcm_output.txt") as file_2:
-    file_2_text = file_2.readlines()
-
-with open("pydicom_output.txt") as file_3:
-    file_3_text = file_3.readlines()
-
-def compare_files(file1, file2, file3):
-    diff12 = list(difflib.unified_diff(file1, file2, lineterm=''))
-    diff13 = list(difflib.unified_diff(file1, file3, lineterm=''))
-    diff23 = list(difflib.unified_diff(file2, file3, lineterm=''))
-    
-    return diff12, diff13, diff23
-
-diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
-
-# Print differences
-print("Differences between File 1 and File 2:")
-print("\n".join(diff12))
-
-print("\nDifferences between File 1 and File 3:")
-print("\n".join(diff13))
-
-print("\nDifferences between File 2 and File 3:")
-print("\n".join(diff23))
+differences = compare_metadata(libdicom_data, gdcm_data, pydicom_data)
+print("Differences:")
+print(differences)
