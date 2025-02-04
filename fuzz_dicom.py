@@ -77,14 +77,14 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
     if file is not None:
         for tag in dataset.tags():
             element = dataset.get(tag)
-            file.write(f"{' ' * indent}{element}\n")
+            file.write(f"{' ' * indent}{tag} {element.get_value()}\n")
             if element.vr_class() == pylibdicom.VRClass.SEQUENCE:
                 seq = element.get_value()
                 libdicom_print_sequence(seq, indent + 2, file)
     else:
         for tag in dataset.tags():
             element = dataset.get(tag)
-            print(f"{' ' * indent}{element}")
+            print(f"{' ' * indent}{tag} {element. value}")
             if element.vr_class() == pylibdicom.VRClass.SEQUENCE:
                 seq = element.get_value()
                 libdicom_print_sequence(seq, indent + 2)
