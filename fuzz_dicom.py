@@ -143,6 +143,28 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
                 value = element.GetValue()
                 print(f"{' '*indent}{tag} {value}\n")
 
+def pydicom_print_sequence(seq, indent=0, file=None):
+    if file is not None:
+        for index, dataset in enumerate(seq):
+            file.write(f"{' ' * indent}-- Item #{index} --\n")
+            pydicom_print_dataset(dataset, indent + 2, file)
+    else:
+        for index, dataset in enumerate(seq):
+            print(f"{' ' * indent}-- Item #{index} --")
+            pydicom_print_dataset(dataset, indent + 2)
+
+def pydicom_print_dataset(dataset, indent=0, file=None):
+    if file is not None:
+        for elem in dataset:
+            file.write(f"{' ' * indent}{elem.tag} {elem.value}\n")
+            if elem.VR == "SQ":
+                pydicom_print_sequence(elem.value, indent + 2, file)
+    else:
+        for elem in dataset:
+            print(f"{' ' * indent}{elem.tag} {elem.value}")
+            if elem.VR == "SQ":
+                pydicom_print_sequence(elem.value, indent + 2)
+
 
 if len(sys.argv) != 2:
     print("Usage: python fuzz_dicom.py <dicom_file>")
@@ -181,12 +203,10 @@ with open("gdcm_output.txt", "w") as output_file:
 ds = dcmread(sys.argv[1])
 with open("pydicom_output.txt", "w") as output_file:
     output_file.write("===File Meta Information===\n")
-    for elem in ds.file_meta:
-        output_file.write(f"{elem.tag} {elem.value}\n")
+    pydicom_print_dataset(ds.file_meta, file=output_file)
 
     output_file.write("===Dataset===\n")
-    for elem in ds:
-        output_file.write(f"{elem.tag} {elem.value}\n")
+    pydicom_print_dataset(ds, file=output_file)
 
 # Compare the outputs
 libdicom_data = parse_libdicom_output("libdicom_output.txt")
