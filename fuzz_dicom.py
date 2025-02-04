@@ -89,6 +89,61 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
                 seq = element.get_value()
                 libdicom_print_sequence(seq, indent + 2)
 
+def gdcm_print_sequence(seq, indent=0, file=None):
+    if file is not None:
+        itemNr = 1
+        while itemNr < seq.GetNumberOfItems():
+            print(f"Item {itemNr}")
+            gdcm_print_dataset(seq.GetItem(itemNr).GetNestedDataSet(), indent + 2, file)
+            print("printed item")
+            itemNr += 1
+    else:
+        itemNr = 1
+        while itemNr < seq.GetNumberOfItems():
+            gdcm_print_dataset(seq.GetItem(itemNr).GetNestedDataSet(), indent + 2)
+            itemNr += 1
+
+def gdcm_print_dataset(dataset, indent=0, file=None):
+    if file is not None:
+        it = dataset.GetDES().begin()
+        while not it.equal(dataset.GetDES().end()):
+            element = it.next()
+
+            if element.IsEmpty():
+                continue
+            
+            tag = element.GetTag()
+            vr = str(element.GetVR())
+
+            if vr == "SQ":
+                value = element.GetValueAsSQ()
+                file.write(f"{' '*indent}{tag} {value}\n")
+                gdcm_print_sequence(value, indent+2, file)
+
+            else:
+                value = element.GetValue()
+                file.write(f"{' '*indent}{tag} {value}\n")
+    else:
+        it = dataset.GetDES().begin()
+        while not it.equal(dataset.GetDES().end()):
+            element = it.next()
+
+            if element.IsEmpty():
+                continue
+            
+            tag = element.GetTag()
+            vr = str(element.GetVR())
+
+            if vr == "SQ":
+                value = element.GetValueAsSQ()
+                print(f"{' '*indent}{tag} {value}\n")
+                gdcm_print_sequence(seq, indent+2, file)
+
+            else:
+                value = element.GetValue()
+                print(f"{' '*indent}{tag} {value}\n")
+
+
 if len(sys.argv) != 2:
     print("Usage: python fuzz_dicom.py <dicom_file>")
     quit()
@@ -112,21 +167,26 @@ if (not reader.Read()):
     quit()
 
 file = reader.GetFile()
-fileMetaInformation = file.GetHeader()
+meta = file.GetHeader()
 
 with open("gdcm_output.txt", "w") as output_file:
     output_file.write("===File Meta Information===\n")
-    output_file.write(str(fileMetaInformation))
+    gdcm_print_dataset(meta, file=output_file)
 
-    dataset = file.GetDataSet()
+    ds = file.GetDataSet()
     output_file.write("===Dataset===\n")
-    output_file.write(str(dataset))
+    gdcm_print_dataset(ds, file=output_file)
 
 # now use pydicom
 ds = dcmread(sys.argv[1])
 with open("pydicom_output.txt", "w") as output_file:
+    output_file.write("===File Meta Information===\n")
+    for elem in ds.file_meta:
+        output_file.write(f"{elem.tag} {elem.value}\n")
+
+    output_file.write("===Dataset===\n")
     for elem in ds:
-        output_file.write(f"{elem.tag}: {elem.name} = {elem.value}\n")
+        output_file.write(f"{elem.tag} {elem.value}\n")
 
 # Compare the outputs
 libdicom_data = parse_libdicom_output("libdicom_output.txt")
