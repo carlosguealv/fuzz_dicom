@@ -3,65 +3,13 @@ import gdcm
 from pydicom import dcmread
 import difflib
 import sys
-import re
 
-def parse_libdicom_output(filepath):
-    """Parses libdicom output and extracts standard metadata."""
-    metadata = {}
-    with open(filepath, "r") as f:
-        lines = f.readlines()
+def compare_files(file1, file2, file3):
+    diff12 = list(difflib.unified_diff(file1, file2, lineterm=''))
+    diff13 = list(difflib.unified_diff(file1, file3, lineterm=''))
+    diff23 = list(difflib.unified_diff(file2, file3, lineterm=''))
 
-    for line in lines:
-        match = re.match(r"\((\w{4},\w{4})\)\s+\S+\s+\d+\s+(.+)", line)
-        if match:
-            tag, value = match.groups()
-            metadata[tag] = value.strip()
-
-    return metadata
-
-def parse_gdcm_output(filepath):
-    """Parses GDCM output and extracts standard metadata."""
-    metadata = {}
-    with open(filepath, "r") as f:
-        lines = f.readlines()
-
-    for line in lines:
-        match = re.match(r"\((\w{4},\w{4})\)\s+(\S+)", line)
-        if match:
-            tag, value = match.groups()
-            metadata[tag] = value.strip()
-
-    return metadata
-
-def parse_pydicom_output(filepath):
-    """Parses pydicom output and extracts standard metadata."""
-    metadata = {}
-    with open(filepath, "r") as f:
-        lines = f.readlines()
-
-    for line in lines:
-        match = re.match(r"(\(\w{4},\w{4}\))\:\s+.*?=\s*(.*)", line)
-        if match:
-            tag, value = match.groups()
-            metadata[tag] = value.strip()
-
-    return metadata
-
-def compare_metadata(libdicom_data, gdcm_data, pydicom_data):
-    """Compares metadata extracted from different libraries and highlights differences."""
-    all_keys = set(libdicom_data.keys()) and set(gdcm_data.keys()) and set(pydicom_data.keys())
-    
-    differences = {}
-    
-    for key in sorted(all_keys):
-        libdicom_value = libdicom_data.get(key, "")
-        gdcm_value = gdcm_data.get(key, "")
-        pydicom_value = pydicom_data.get(key, "")
-        
-        if libdicom_value != gdcm_value or libdicom_value != pydicom_value:
-            differences[key] = (libdicom_value, gdcm_value, pydicom_value)
-
-    return differences
+    return diff12, diff13, diff23
 
 def libdicom_print_sequence(seq, indent=0, file=None):
     if file is not None:
@@ -76,6 +24,9 @@ def libdicom_print_sequence(seq, indent=0, file=None):
 def libdicom_print_dataset(dataset, indent=0, file=None):
     if file is not None:
         for tag in dataset.tags():
+            if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
+                continue
+
             element = dataset.get(tag)
             file.write(f"{' ' * indent}{tag} {element.get_value()}\n")
             if element.vr_class() == pylibdicom.VRClass.SEQUENCE:
@@ -83,6 +34,9 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
                 libdicom_print_sequence(seq, indent + 2, file)
     else:
         for tag in dataset.tags():
+            if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
+                continue
+
             element = dataset.get(tag)
             print(f"{' ' * indent}{tag} {element. value}")
             if element.vr_class() == pylibdicom.VRClass.SEQUENCE:
@@ -93,13 +47,13 @@ def gdcm_print_sequence(seq, indent=0, file=None):
     if file is not None:
         itemNr = 1
         while itemNr < seq.GetNumberOfItems():
-            print(f"Item {itemNr}")
+            file.write(f"{' ' * indent}-- Item #{itemNr} --\n")
             gdcm_print_dataset(seq.GetItem(itemNr).GetNestedDataSet(), indent + 2, file)
-            print("printed item")
             itemNr += 1
     else:
         itemNr = 1
         while itemNr < seq.GetNumberOfItems():
+            print(f"{' ' * indent}-- Item #{itemNr} --")
             gdcm_print_dataset(seq.GetItem(itemNr).GetNestedDataSet(), indent + 2)
             itemNr += 1
 
@@ -115,14 +69,22 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
             tag = element.GetTag()
             vr = str(element.GetVR())
 
+            if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
+                continue
+
+            if str(tag) == "(0008,0008)":
+                value = str(element.GetValue()).split('\\')
+                output_file.write(f"{' '*indent}{tag} {value}\n")
+                continue
+
             if vr == "SQ":
                 value = element.GetValueAsSQ()
-                file.write(f"{' '*indent}{tag} {value}\n")
+                file.write(f"{' '*indent}{tag} ['{value}']\n")
                 gdcm_print_sequence(value, indent+2, file)
 
             else:
                 value = element.GetValue()
-                file.write(f"{' '*indent}{tag} {value}\n")
+                file.write(f"{' '*indent}{tag} ['{value}']\n")
     else:
         it = dataset.GetDES().begin()
         while not it.equal(dataset.GetDES().end()):
@@ -134,14 +96,22 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
             tag = element.GetTag()
             vr = str(element.GetVR())
 
+            if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
+                continue
+
+            if tag == "(0008,0008)":
+                value = str(element.GetValue()).split('\\')
+                print(f"{' '*indent}{tag} {value}\n")
+                continue
+
             if vr == "SQ":
                 value = element.GetValueAsSQ()
-                print(f"{' '*indent}{tag} {value}\n")
+                print(f"{' '*indent}{tag} ['{value}']\n")
                 gdcm_print_sequence(seq, indent+2, file)
 
             else:
                 value = element.GetValue()
-                print(f"{' '*indent}{tag} {value}\n")
+                print(f"{' '*indent}{tag} ['{value}']\n")
 
 def pydicom_print_sequence(seq, indent=0, file=None):
     if file is not None:
@@ -156,15 +126,24 @@ def pydicom_print_sequence(seq, indent=0, file=None):
 def pydicom_print_dataset(dataset, indent=0, file=None):
     if file is not None:
         for elem in dataset:
-            file.write(f"{' ' * indent}{elem.tag} {elem.value}\n")
+            if str(elem.tag) == "(0002,0000)" or str(elem.tag) == "(0002,0001)":
+                continue
+
             if elem.VR == "SQ":
                 pydicom_print_sequence(elem.value, indent + 2, file)
+                continue
+
+            file.write(f"{' ' * indent}{elem.tag} ['{elem.value}']\n")
     else:
         for elem in dataset:
-            print(f"{' ' * indent}{elem.tag} {elem.value}")
+            if str(elem.tag) == "(0002,0000)" or str(elem.tag) == "(0002,0001)":
+                continue
+
             if elem.VR == "SQ":
                 pydicom_print_sequence(elem.value, indent + 2)
+                continue
 
+            print(f"{' ' * indent}{elem.tag} ['{elem.value}']")
 
 if len(sys.argv) != 2:
     print("Usage: python fuzz_dicom.py <dicom_file>")
@@ -209,11 +188,22 @@ with open("pydicom_output.txt", "w") as output_file:
     pydicom_print_dataset(ds, file=output_file)
 
 # Compare the outputs
-libdicom_data = parse_libdicom_output("libdicom_output.txt")
-gdcm_data = parse_gdcm_output("gdcm_output.txt")
-pydicom_data = parse_pydicom_output("pydicom_output.txt")
-print(pydicom_data)
+with open("libdicom_output.txt") as file_1:
+    file_1_text = file_1.readlines()
 
-differences = compare_metadata(libdicom_data, gdcm_data, pydicom_data)
-print("Differences:")
-print(differences)
+with open("gdcm_output.txt") as file_2:
+    file_2_text = file_2.readlines()
+
+with open("pydicom_output.txt") as file_3:
+    file_3_text = file_3.readlines()
+
+diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
+# Print differences
+print("Differences between File 1 and File 2:")
+print("\n".join(diff12))
+
+print("\nDifferences between File 1 and File 3:")
+print("\n".join(diff13))
+
+print("\nDifferences between File 2 and File 3:")
+print("\n".join(diff23))
