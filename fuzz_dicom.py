@@ -18,7 +18,7 @@ def libdicom_print_sequence(seq, indent=0, file=None):
             libdicom_print_dataset(seq.get(index), indent + 2, file)
     else:
         for index in range(seq.count()):
-            print(f"{' ' * indent}-- Item #{index} --")
+            print(f"{' ' * indent}-- Item #{index} --\n")
             libdicom_print_dataset(seq.get(index), indent + 2)
 
 def libdicom_print_dataset(dataset, indent=0, file=None):
@@ -28,17 +28,25 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
                 continue
 
             element = dataset.get(tag)
+            
+            if str(element.vr()) in ["FD", "AT", "US", "FL", "OB", "UL"]:
+                continue
+
             file.write(f"{' ' * indent}{tag} {element.get_value()}\n")
             if element.vr_class() == pylibdicom.VRClass.SEQUENCE:
                 seq = element.get_value()
                 libdicom_print_sequence(seq, indent + 2, file)
+
     else:
         for tag in dataset.tags():
             if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
                 continue
 
             element = dataset.get(tag)
-            print(f"{' ' * indent}{tag} {element. value}")
+            if str(element.vr()) in ["FD", "AT", "US", "FL", "OB", "UL"]:
+                continue
+
+            print(f"{' ' * indent}{tag} {element. value}\n")
             if element.vr_class() == pylibdicom.VRClass.SEQUENCE:
                 seq = element.get_value()
                 libdicom_print_sequence(seq, indent + 2)
@@ -46,14 +54,14 @@ def libdicom_print_dataset(dataset, indent=0, file=None):
 def gdcm_print_sequence(seq, indent=0, file=None):
     if file is not None:
         itemNr = 1
-        while itemNr < seq.GetNumberOfItems():
-            file.write(f"{' ' * indent}-- Item #{itemNr} --\n")
+        while itemNr <= seq.GetNumberOfItems():
+            file.write(f"{' ' * indent}-- Item #{itemNr-1} --\n")
             gdcm_print_dataset(seq.GetItem(itemNr).GetNestedDataSet(), indent + 2, file)
             itemNr += 1
     else:
         itemNr = 1
-        while itemNr < seq.GetNumberOfItems():
-            print(f"{' ' * indent}-- Item #{itemNr} --")
+        while itemNr <= seq.GetNumberOfItems():
+            print(f"{' ' * indent}-- Item #{itemNr-1} --\n")
             gdcm_print_dataset(seq.GetItem(itemNr).GetNestedDataSet(), indent + 2)
             itemNr += 1
 
@@ -62,29 +70,31 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
         it = dataset.GetDES().begin()
         while not it.equal(dataset.GetDES().end()):
             element = it.next()
-
-            if element.IsEmpty():
-                continue
-            
             tag = element.GetTag()
             vr = str(element.GetVR())
 
+            if element.IsEmpty():
+                if vr == "SQ":
+                    file.write(f"{' '*indent}{tag} <Sequence of 0 items>\n")
+                continue
+             
             if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
-                continue
-
-            if str(tag) == "(0008,0008)":
-                value = str(element.GetValue()).split('\\')
-                output_file.write(f"{' '*indent}{tag} {value}\n")
-                continue
+                continue 
 
             if vr == "SQ":
                 value = element.GetValueAsSQ()
-                file.write(f"{' '*indent}{tag} ['{value}']\n")
+                file.write(f"{' '*indent}{tag} <Sequence of {value.GetNumberOfItems()} items>\n")
                 gdcm_print_sequence(value, indent+2, file)
+            elif vr in ["FD", "AT", "US", "FL", "OB", "UL"]:
+                continue
 
             else:
+                if "\\" in str(element.GetValue()):
+                    value = str(element.GetValue()).rstrip().split('\\')
+                    output_file.write(f"{' '*indent}{tag} {value}\n")
+                    continue
                 value = element.GetValue()
-                file.write(f"{' '*indent}{tag} ['{value}']\n")
+                file.write(f"{' '*indent}{tag} ['{str(value).rstrip()}']\n")
     else:
         it = dataset.GetDES().begin()
         while not it.equal(dataset.GetDES().end()):
@@ -99,14 +109,17 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
             if str(tag) == "(0002,0000)" or str(tag) == "(0002,0001)":
                 continue
 
-            if tag == "(0008,0008)":
+            if vr == "CS":
                 value = str(element.GetValue()).split('\\')
                 print(f"{' '*indent}{tag} {value}\n")
                 continue
 
+            elif vr in ["FD", "AT", "US", "FL", "OB", "UL"]:
+                continue
+
             if vr == "SQ":
                 value = element.GetValueAsSQ()
-                print(f"{' '*indent}{tag} ['{value}']\n")
+                print(f"{' '*indent}{tag} <Sequence of {value.GetNumberOfItems()} items>\n")
                 gdcm_print_sequence(seq, indent+2, file)
 
             else:
@@ -127,26 +140,49 @@ def pydicom_print_dataset(dataset, indent=0, file=None):
     if file is not None:
         for elem in dataset:
             if str(elem.tag) == "(0002,0000)" or str(elem.tag) == "(0002,0001)":
-                continue
+                continue 
 
-            if elem.VR == "SQ":
+            elif elem.VR == "SQ":
+                file.write(f"{' ' * indent}{str(elem.tag).lower()} <Sequence of {len(elem.value)} items>\n")
                 pydicom_print_sequence(elem.value, indent + 2, file)
                 continue
+            elif str(elem.VR) in ["FD", "AT", "US", "FL", "OB", "UL"]:
+                continue
 
-            file.write(f"{' ' * indent}{elem.tag} ['{elem.value}']\n")
+            if '[' in str(elem.value):
+                if "'" in str(elem.value):
+                    file.write(f"{' ' * indent}{str(elem.tag).lower()} {elem.value}\n")
+                else:
+                    s = str(elem.value).strip('[]')
+
+                    items = s.split(',')
+
+                    result = [item.strip() for item in items]
+                    
+                    file.write(f"{' ' * indent}{str(elem.tag).lower()} {result}\n")
+                continue
+
+            file.write(f"{' ' * indent}{str(elem.tag).lower()} ['{elem.value}']\n")
     else:
         for elem in dataset:
             if str(elem.tag) == "(0002,0000)" or str(elem.tag) == "(0002,0001)":
                 continue
 
-            if elem.VR == "SQ":
-                pydicom_print_sequence(elem.value, indent + 2)
+            if elem.VR == "CS":
+                print(f"{' ' * indent}{str(elem.tag).lower()} {elem.value}\n")
                 continue
 
-            print(f"{' ' * indent}{elem.tag} ['{elem.value}']")
+            elif elem.VR == "SQ":
+                print(f"{' ' * indent}{str(elem.tag).lower()} <Sequence of {len(elem.value)} items>\n")
+                pydicom_print_sequence(elem.value, indent + 2)
+                continue
+            elif str(elem.VR) in ["FD", "AT", "US", "FL", "OB", "UL"]:
+                continue
+
+            print(f"{' ' * indent}{str(elem.tag).lower()} ['{elem.value}']\n")
 
 if len(sys.argv) != 2:
-    print("Usage: python fuzz_dicom.py <dicom_file>")
+    print("Usage: python fuzz_dicom.py <dicom_file>\n")
     quit()
 
 # Open the file for writing
@@ -199,11 +235,11 @@ with open("pydicom_output.txt") as file_3:
 
 diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
 # Print differences
-print("Differences between File 1 and File 2:")
+print("Differences between File 1 and File 2:\n")
 print("\n".join(diff12))
 
-print("\nDifferences between File 1 and File 3:")
+print("\nDifferences between File 1 and File 3:\n")
 print("\n".join(diff13))
 
-print("\nDifferences between File 2 and File 3:")
+print("\nDifferences between File 2 and File 3:\n")
 print("\n".join(diff23))
