@@ -3,10 +3,12 @@ FROM ubuntu:latest
 SHELL ["/bin/bash", "-c"]
 
 # install libdicom
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y software-properties-common
+
+RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && apt-get install -y \
     curl vim build-essential git cmake \
-		python3 python3-pip python3-setuptools \
-		python3-wheel python3-venv ninja-build afl++ meson \
+		python3.11 python3.11-dev python3.11-venv \
+		ninja-build afl++ meson \
 		diffutils
 
 RUN git clone https://github.com/ImagingDataCommons/libdicom.git
@@ -14,9 +16,9 @@ RUN git clone https://github.com/ImagingDataCommons/libdicom.git
 RUN cd libdicom && meson setup builddir --buildtype release \
 	&& meson compile -C builddir && meson install -C builddir && ldconfig
 
-RUN python3 -m venv dicom
+RUN python3.11 -m venv dicom
 
-RUN source /dicom/bin/activate && pip install pydicom python-gdcm cffi
+RUN source /dicom/bin/activate && pip install pydicom python-gdcm cffi atheris
 
 RUN git clone https://github.com/jcupitt/pylibdicom.git
 
