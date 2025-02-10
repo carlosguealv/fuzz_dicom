@@ -1,3 +1,4 @@
+import atheris
 import pylibdicom
 import gdcm
 from pydicom import dcmread
@@ -181,65 +182,73 @@ def pydicom_print_dataset(dataset, indent=0, file=None):
 
             print(f"{' ' * indent}{str(elem.tag).lower()} ['{elem.value}']\n")
 
-if len(sys.argv) != 2:
-    print("Usage: python fuzz_dicom.py <dicom_file>\n")
-    quit()
+# make a function to compare the library outputs
+def test_one_input(data):
+    try:
+        file = pylibdicom.Filehandle.create_from_memory(data)            
+        if file is None:
+            raise Exception("Error reading DICOM data with pylibdicom")
+        with open("libdicom_output.txt", "w") as output_file:
+            file_meta = file.get_file_meta()
+            output_file.write("===File Meta Information===\n")
+            libdicom_print_dataset(file_meta, file=output_file)
 
-# Open the file for writing
-with open("libdicom_output.txt", "w") as output_file:
-    file = pylibdicom.Filehandle.create_from_file(sys.argv[1])
-    file_meta = file.get_file_meta()
-    output_file.write("===File Meta Information===\n")
-    libdicom_print_dataset(file_meta, file=output_file)
+            metadata = file.get_metadata()
+            output_file.write("===Dataset===\n")
+            libdicom_print_dataset(metadata, file=output_file)
 
-    metadata = file.get_metadata()
-    output_file.write("===Dataset===\n")
-    libdicom_print_dataset(metadata, file=output_file)
+        reader = gdcm.Reader()
+        reader.SetMemoryBuffer(data)
+        if (not reader.Read()):
+            raise Exception("Error reading DICOM data with grassroots-dicom")
 
-# Now use gdcm
-reader = gdcm.Reader()
-reader.SetFileName(sys.argv[1])
-if (not reader.Read()):
-    print("Unable to read %s" % sys.argv[1])
-    quit()
+        file = reader.GetFile()
+        meta = file.GetHeader()
 
-file = reader.GetFile()
-meta = file.GetHeader()
+        with open("gdcm_output.txt", "w") as output_file:
+            output_file.write("===File Meta Information===\n")
+            gdcm_print_dataset(meta, file=output_file)
 
-with open("gdcm_output.txt", "w") as output_file:
-    output_file.write("===File Meta Information===\n")
-    gdcm_print_dataset(meta, file=output_file)
+            ds = file.GetDataSet()
+            output_file.write("===Dataset===\n")
+            gdcm_print_dataset(ds, file=output_file)
 
-    ds = file.GetDataSet()
-    output_file.write("===Dataset===\n")
-    gdcm_print_dataset(ds, file=output_file)
+        ds = dcmread(data)
+        # check that dcmread was successful
+        if ds is None:
+            raise Exception("Error reading DICOM data with pydicom")
+        
+        with open("pydicom_output.txt", "w") as output_file:
+            output_file.write("===File Meta Information===\n")
+            pydicom_print_dataset(ds.file_meta, file=output_file)
+            output_file.write("===Dataset===\n")
+            pydicom_print_dataset(ds, file=output_file)
 
-# now use pydicom
-ds = dcmread(sys.argv[1])
-with open("pydicom_output.txt", "w") as output_file:
-    output_file.write("===File Meta Information===\n")
-    pydicom_print_dataset(ds.file_meta, file=output_file)
+        with open("libdicom_output.txt") as file_1:
+            file_1_text = file_1.readlines()
 
-    output_file.write("===Dataset===\n")
-    pydicom_print_dataset(ds, file=output_file)
+        with open("gdcm_output.txt") as file_2:
+            file_2_text = file_2.readlines()
 
-# Compare the outputs
-with open("libdicom_output.txt") as file_1:
-    file_1_text = file_1.readlines()
+        with open("pydicom_output.txt") as file_3:
+            file_3_text = file_3.readlines()
 
-with open("gdcm_output.txt") as file_2:
-    file_2_text = file_2.readlines()
+        diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
+        if diff12 or diff13 or diff23:
+            print("Differences between File 1 and File 2:\n")
+            print("\n".join(diff12))
+            print("\nDifferences between File 1 and File 3:\n")
+            print("\n".join(diff13))
+            print("\nDifferences between File 2 and File 3:\n")
+            print("\n".join(diff23))
+            raise Exception("Differences found between three function")
+    except Exception as e:
+        print(f"Error while processing DICOM data: {e}")
 
-with open("pydicom_output.txt") as file_3:
-    file_3_text = file_3.readlines()
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python fuzz_dicom.py <dicom_file>\n")
+        quit()
 
-diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
-# Print differences
-print("Differences between File 1 and File 2:\n")
-print("\n".join(diff12))
-
-print("\nDifferences between File 1 and File 3:\n")
-print("\n".join(diff13))
-
-print("\nDifferences between File 2 and File 3:\n")
-print("\n".join(diff23))
+    atheris.Setup(sys.argv, test_one_input)
+    atheris.Fuzz()
