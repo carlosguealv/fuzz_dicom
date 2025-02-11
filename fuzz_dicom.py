@@ -4,6 +4,7 @@ import gdcm
 from pydicom import dcmread
 import difflib
 import sys
+import os
 
 def compare_files(file1, file2, file3):
     diff12 = list(difflib.unified_diff(file1, file2, lineterm=''))
@@ -185,6 +186,7 @@ def pydicom_print_dataset(dataset, indent=0, file=None):
 # make a function to compare the library outputs
 def test_one_input(data):
     try:
+        data = data.decode("utf-8", errors="ignore")
         file = pylibdicom.Filehandle.create_from_memory(data)            
         if file is None:
             raise Exception("Error reading DICOM data with pylibdicom")
@@ -250,5 +252,20 @@ def main():
         print("Usage: python fuzz_dicom.py <dicom_file>\n")
         quit()
 
-    atheris.Setup(sys.argv, test_one_input)
+    directory = sys.argv[1]
+
+    if not os.path.isdir(directory):
+        print("Error: Provided path is not a directory.")
+        return
+
+    filenames = [f.encode("utf-8") for f in os.listdir(directory)]
+
+    def fuzz():
+        for filename in filenames:
+            test_one_input(filename)
+
+    atheris.instrument_all()
+    atheris.Setup(sys.argv, fuzz)
     atheris.Fuzz()
+
+main()

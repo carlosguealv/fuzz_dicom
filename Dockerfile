@@ -23,3 +23,5 @@ RUN source /dicom/bin/activate && pip install pydicom python-gdcm cffi atheris
 RUN git clone https://github.com/jcupitt/pylibdicom.git
 
 COPY fuzz_dicom.py /pylibdicom/fuzz_dicom.py
+
+COPY images/ /pylibdicom/images/
