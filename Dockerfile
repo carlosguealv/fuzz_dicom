@@ -24,4 +24,6 @@ RUN git clone https://github.com/jcupitt/pylibdicom.git
 
 COPY fuzz_dicom.py /pylibdicom/fuzz_dicom.py
 
+COPY test_image.py /pylibdicom/test_image.py
+
 COPY images/ /pylibdicom/images/
