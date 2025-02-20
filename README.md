@@ -24,13 +24,7 @@ fuzz_dicom is a Python-based project designed for fuzz testing DICOM (Digital Im
     cd fuzz_dicom
     ```
 
-2. Install the required Python packages:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3. Build the Docker container:
+2. Build the Docker container:
 
     ```bash
     docker build -t fuzz_dicom .
@@ -38,16 +32,28 @@ fuzz_dicom is a Python-based project designed for fuzz testing DICOM (Digital Im
 
 ### Usage
 
-1. Run the fuzz testing script:
+1. Run the image in a container:
 
     ```bash
-    python fuzz_test.py
+    docker run -it fuzz_dicom /bin/bash
     ```
 
-2. Alternatively, you can run the tests within the Docker container:
+2. Run the created environment and cd into the pylibdicom directory:
 
     ```bash
-    docker run --rm fuzz_dicom
+    source dicom/bin/activate && cd pylibdicom
+    ```
+
+3. Run the fuzzing script:
+
+    ```bash
+    python3 fuzz_dicom.py images/
+    ```
+
+4. Check any interesting results with the test_image.py script:
+
+    ```bash
+    python3 test_image.py images/your_image
     ```
 
 ## Contributing
