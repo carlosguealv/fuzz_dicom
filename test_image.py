@@ -85,7 +85,7 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
                 value = element.GetValueAsSQ()
                 file.write(f"{' '*indent}{tag} <Sequence of {value.GetNumberOfItems()} items>\n")
                 gdcm_print_sequence(value, indent+2, file)
-            elif vr in ["FD", "AT", "US", "FL", "OB", "UL"]:
+            elif vr in ["FD", "AT", "US", "FL", "OB", "OW", "OF", "UL", "UT"]:
                 continue
 
             else:
@@ -114,7 +114,7 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
                 print(f"{' '*indent}{tag} {value}\n")
                 continue
 
-            elif vr in ["FD", "AT", "US", "FL", "OB", "UL"]:
+            elif vr in ["FD", "AT", "US", "FL", "OB", "OW", "OF", "UL", "UT"]:
                 continue
 
             if vr == "SQ":
@@ -146,7 +146,7 @@ def pydicom_print_dataset(dataset, indent=0, file=None):
                 file.write(f"{' ' * indent}{str(elem.tag).lower()} <Sequence of {len(elem.value)} items>\n")
                 pydicom_print_sequence(elem.value, indent + 2, file)
                 continue
-            elif str(elem.VR) in ["FD", "AT", "US", "FL", "OB", "UL"]:
+            elif str(elem.VR) in ["FD", "AT", "US", "FL", "OB", "OW", "OF", "UL", "UT"]:
                 continue
 
             if '[' in str(elem.value):
@@ -176,7 +176,7 @@ def pydicom_print_dataset(dataset, indent=0, file=None):
                 print(f"{' ' * indent}{str(elem.tag).lower()} <Sequence of {len(elem.value)} items>\n")
                 pydicom_print_sequence(elem.value, indent + 2)
                 continue
-            elif str(elem.VR) in ["FD", "AT", "US", "FL", "OB", "UL"]:
+            elif str(elem.VR) in ["FD", "AT", "US", "FL", "OB", "OW", "OF", "UL", "UT"]:
                 continue
 
             print(f"{' ' * indent}{str(elem.tag).lower()} ['{elem.value}']\n")
