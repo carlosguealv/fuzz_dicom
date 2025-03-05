@@ -256,7 +256,7 @@ def differential_fuzz(data):
         
         # Create a header with timestamp to differentiate test cases
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        test_case_header = f"\n==== Test Case at {timestamp} ====\n"
+        test_case_header = f"\n==== Test Case at {timestamp}, file {filename} ====\n"
 
         diff_report = (
             f"{test_case_header}"
