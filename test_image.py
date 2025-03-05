@@ -91,7 +91,7 @@ def gdcm_print_dataset(dataset, indent=0, file=None):
             else:
                 if "\\" in str(element.GetValue()):
                     value = str(element.GetValue()).rstrip().split('\\')
-                    output_file.write(f"{' '*indent}{tag} {value}\n")
+                    file.write(f"{' '*indent}{tag} {value}\n")
                     continue
                 value = element.GetValue()
                 file.write(f"{' '*indent}{tag} ['{str(value).rstrip()}']\n")
