@@ -193,6 +193,11 @@ def differential_fuzz(data):
         tmp.flush()
         filename = tmp.name
 
+    # Ensure the file has a .dcm extension
+    new_filename = filename + ".dcm"
+    os.rename(filename, new_filename)
+    filename = new_filename  # Update filename reference
+
     # Create StringIO objects to capture outputs from each library.
     libdicom_out = io.StringIO()
     gdcm_out = io.StringIO()
