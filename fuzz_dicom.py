@@ -248,8 +248,14 @@ def differential_fuzz(data):
     pydicom_text = pydicom_out.getvalue().splitlines()
 
     diff12, diff13, diff23 = compare_files(libdicom_text, gdcm_text, pydicom_text)
-    # For demonstration, we simply compute the diffs.
-    # You might want to log or analyze these differences further.
+
+    # Raise an error if there are any differences
+    if diff12 or diff13 or diff23:
+        raise ValueError("Differences detected between the outputs:\n"
+                         f"LibDICOM vs GDCM: {diff12}\n"
+                         f"LibDICOM vs PyDICOM: {diff13}\n"
+                         f"GDCM vs PyDICOM: {diff23}")
+
     return
 
 def TestOneInput(data):
