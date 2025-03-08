@@ -181,65 +181,66 @@ def pydicom_print_dataset(dataset, indent=0, file=None):
 
             print(f"{' ' * indent}{str(elem.tag).lower()} ['{elem.value}']\n")
 
-if len(sys.argv) != 2:
-    print("Usage: python test_image.py <dicom_file>\n")
-    quit()
-
-# Open the file for writing
-with open("libdicom_output.txt", "w") as output_file:
-    file = pylibdicom.Filehandle.create_from_file(sys.argv[1])
-    file_meta = file.get_file_meta()
-    output_file.write("===File Meta Information===\n")
-    libdicom_print_dataset(file_meta, file=output_file)
-
-    metadata = file.get_metadata()
-    output_file.write("===Dataset===\n")
-    libdicom_print_dataset(metadata, file=output_file)
-
-# Now use gdcm
-reader = gdcm.Reader()
-reader.SetFileName(sys.argv[1])
-if (not reader.Read()):
-    print("Unable to read %s" % sys.argv[1])
-    quit()
-
-file = reader.GetFile()
-meta = file.GetHeader()
-
-with open("gdcm_output.txt", "w") as output_file:
-    output_file.write("===File Meta Information===\n")
-    gdcm_print_dataset(meta, file=output_file)
-
-    ds = file.GetDataSet()
-    output_file.write("===Dataset===\n")
-    gdcm_print_dataset(ds, file=output_file)
-
-# now use pydicom
-ds = dcmread(sys.argv[1])
-with open("pydicom_output.txt", "w") as output_file:
-    output_file.write("===File Meta Information===\n")
-    pydicom_print_dataset(ds.file_meta, file=output_file)
-
-    output_file.write("===Dataset===\n")
-    pydicom_print_dataset(ds, file=output_file)
-
-# Compare the outputs
-with open("libdicom_output.txt") as file_1:
-    file_1_text = file_1.readlines()
-
-with open("gdcm_output.txt") as file_2:
-    file_2_text = file_2.readlines()
-
-with open("pydicom_output.txt") as file_3:
-    file_3_text = file_3.readlines()
-
-diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
-# Print differences
-print("Differences between File 1 and File 2:\n")
-print("\n".join(diff12))
-
-print("\nDifferences between File 1 and File 3:\n")
-print("\n".join(diff13))
-
-print("\nDifferences between File 2 and File 3:\n")
-print("\n".join(diff23))
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python test_image.py <dicom_file>\n")
+        quit()
+    
+    # Open the file for writing
+    with open("libdicom_output.txt", "w") as output_file:
+        file = pylibdicom.Filehandle.create_from_file(sys.argv[1])
+        file_meta = file.get_file_meta()
+        output_file.write("===File Meta Information===\n")
+        libdicom_print_dataset(file_meta, file=output_file)
+    
+        metadata = file.get_metadata()
+        output_file.write("===Dataset===\n")
+        libdicom_print_dataset(metadata, file=output_file)
+    
+    # Now use gdcm
+    reader = gdcm.Reader()
+    reader.SetFileName(sys.argv[1])
+    if (not reader.Read()):
+        print("Unable to read %s" % sys.argv[1])
+        quit()
+    
+    file = reader.GetFile()
+    meta = file.GetHeader()
+    
+    with open("gdcm_output.txt", "w") as output_file:
+        output_file.write("===File Meta Information===\n")
+        gdcm_print_dataset(meta, file=output_file)
+    
+        ds = file.GetDataSet()
+        output_file.write("===Dataset===\n")
+        gdcm_print_dataset(ds, file=output_file)
+    
+    # now use pydicom
+    ds = dcmread(sys.argv[1])
+    with open("pydicom_output.txt", "w") as output_file:
+        output_file.write("===File Meta Information===\n")
+        pydicom_print_dataset(ds.file_meta, file=output_file)
+    
+        output_file.write("===Dataset===\n")
+        pydicom_print_dataset(ds, file=output_file)
+    
+    # Compare the outputs
+    with open("libdicom_output.txt") as file_1:
+        file_1_text = file_1.readlines()
+    
+    with open("gdcm_output.txt") as file_2:
+        file_2_text = file_2.readlines()
+    
+    with open("pydicom_output.txt") as file_3:
+        file_3_text = file_3.readlines()
+    
+    diff12, diff13, diff23 = compare_files(file_1_text, file_2_text, file_3_text)
+    # Print differences
+    print("Differences between File 1 and File 2:\n")
+    print("\n".join(diff12))
+    
+    print("\nDifferences between File 1 and File 3:\n")
+    print("\n".join(diff13))
+    
+    print("\nDifferences between File 2 and File 3:\n")
+    print("\n".join(diff23))
