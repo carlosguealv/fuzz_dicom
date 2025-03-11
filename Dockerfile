@@ -25,6 +25,10 @@ COPY fuzz_dicom.py pylibdicom/fuzz_dicom.py
 
 COPY test_image.py pylibdicom/test_image.py
 
+COPY minimizer.py pylibdicom/minimizer.py
+
 COPY images/ pylibdicom/images/
+
+COPY test_cases/* /tmp/
 
 RUN echo '. /root/dicom/bin/activate' >> /root/.bashrc
