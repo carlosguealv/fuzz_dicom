@@ -5,6 +5,7 @@ import contextlib
 import os
 import re
 from datetime import datetime
+from multiprocessing import Pool, cpu_count  # New import for multi-core support
 from fuzz_dicom import differential_fuzz
 
 # Precompile your regular expressions.
@@ -53,22 +54,43 @@ def test_case(data, baseline):
     candidate_errors = extract_error_messages(output)
     return candidate_errors == baseline
 
+# Helper function for multiprocessing.
+def test_candidate(args):
+    i, candidate, baseline = args
+    return (i, candidate, test_case(candidate, baseline))
+
 def ddmin(data, baseline):
     """
     Delta debugging minimizer that repeatedly tries to remove chunks of the input.
     It accepts a candidate only if the normalized error messages match the baseline.
+    This version evaluates candidate removals in parallel.
     """
     n = 2
     current = data
     while len(current) > 1:
         chunk_size = max(1, len(current) // n)
         reduction_found = False
+
+        # Prepare candidate removals.
+        candidates = []
         for i in range(n):
             start = i * chunk_size
+            # For the last chunk, remove everything from start to end.
             end = start + chunk_size if i < n - 1 else len(current)
             candidate = current[:start] + current[end:]
+            candidates.append((i, candidate, baseline))
+        
+        # Evaluate candidates in parallel.
+        with Pool(cpu_count()) as pool:
+            results = pool.map(test_candidate, candidates)
+
+        # Ensure results are processed in candidate order.
+        results.sort(key=lambda x: x[0])
+        for i, candidate, success in results:
+            start = i * chunk_size
+            end = start + chunk_size if i < n - 1 else len(current)
             print(f"Trying candidate of size {len(candidate)} (removed bytes {start}:{end})")
-            if test_case(candidate, baseline):
+            if success:
                 print(f"Reduction successful: candidate size {len(candidate)}")
                 current = candidate
                 n = max(n - 1, 2)
@@ -118,3 +140,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
