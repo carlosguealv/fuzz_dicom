@@ -4,7 +4,7 @@ WORKDIR /root
 
 # install libdicom
 RUN apt update \
- && apt install -y software-properties-common curl vim build-essential git cmake python3.11-dev python3.11-venv ninja-build afl++ meson diffutils pkg-config
+ && apt install -y software-properties-common curl vim build-essential git cmake python3.11-dev python3.11-venv ninja-build afl++ meson diffutils pkg-config diffsutils hexedit
 
 RUN git clone https://github.com/ImagingDataCommons/libdicom.git
 
