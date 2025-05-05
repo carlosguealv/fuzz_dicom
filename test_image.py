@@ -188,41 +188,46 @@ if __name__ == "__main__":
     
     # Open the file for writing
     with open("libdicom_output.txt", "w") as output_file:
-        file = pylibdicom.Filehandle.create_from_file(sys.argv[1])
-        file_meta = file.get_file_meta()
-        output_file.write("===File Meta Information===\n")
-        libdicom_print_dataset(file_meta, file=output_file)
-    
-        metadata = file.get_metadata()
-        output_file.write("===Dataset===\n")
-        libdicom_print_dataset(metadata, file=output_file)
+        try:
+            file = pylibdicom.Filehandle.create_from_file(sys.argv[1])
+            file_meta = file.get_file_meta()
+            output_file.write("===File Meta Information===\n")
+            libdicom_print_dataset(file_meta, file=output_file)
+        
+            metadata = file.get_metadata()
+            output_file.write("===Dataset===\n")
+            libdicom_print_dataset(metadata, file=output_file)
+        except Exception as e:
+            print(f"Error reading file with libdicom: {e}")
     
     # Now use gdcm
     reader = gdcm.Reader()
     reader.SetFileName(sys.argv[1])
-    if (not reader.Read()):
-        print("Unable to read %s" % sys.argv[1])
-        quit()
-    
-    file = reader.GetFile()
-    meta = file.GetHeader()
-    
-    with open("gdcm_output.txt", "w") as output_file:
-        output_file.write("===File Meta Information===\n")
-        gdcm_print_dataset(meta, file=output_file)
-    
-        ds = file.GetDataSet()
-        output_file.write("===Dataset===\n")
-        gdcm_print_dataset(ds, file=output_file)
+    if (reader.Read()): 
+        file = reader.GetFile()
+        meta = file.GetHeader()
+        
+        with open("gdcm_output.txt", "w") as output_file:
+            output_file.write("===File Meta Information===\n")
+            gdcm_print_dataset(meta, file=output_file)
+        
+            ds = file.GetDataSet()
+            output_file.write("===Dataset===\n")
+            gdcm_print_dataset(ds, file=output_file)
+    else:
+        print("Error reading file with gdcm")
     
     # now use pydicom
     ds = dcmread(sys.argv[1])
     with open("pydicom_output.txt", "w") as output_file:
-        output_file.write("===File Meta Information===\n")
-        pydicom_print_dataset(ds.file_meta, file=output_file)
-    
-        output_file.write("===Dataset===\n")
-        pydicom_print_dataset(ds, file=output_file)
+        try:
+            output_file.write("===File Meta Information===\n")
+            pydicom_print_dataset(ds.file_meta, file=output_file)
+        
+            output_file.write("===Dataset===\n")
+            pydicom_print_dataset(ds, file=output_file)
+        except Exception as e:
+            print(f"Error reading file with pydicom: {e}")
     
     # Compare the outputs
     with open("libdicom_output.txt") as file_1:
